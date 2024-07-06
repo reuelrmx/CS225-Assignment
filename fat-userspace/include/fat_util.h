@@ -1,57 +1,64 @@
+#ifndef FAT_UTIL_H
+#define FAT_UTIL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <windows.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 
+// Macro Definitions
+#define SECTOR_SIZE 512  // Size of a sector in bytes
+#define FAT12 1          // FAT12 file system type identifier
+#define FAT16 2          // FAT16 file system type identifier
+#define FAT32 3          // FAT32 file system type identifier
 
+// Error Codes
+#define FAT_SUCCESS 0    // Success return code
+#define FAT_ERROR -1     // Error return code
 
-// Function to read the boot sector of the FAT filesystem
-void read_boot_sector(FILE *fp, FAT_BootSector *boot_sector) {
-    fseek(fp, 0, SEEK_SET); // Move to the start of the file
-    fread(boot_sector, sizeof(FAT_BootSector), 1, fp); // Read boot sector
+// Utility Functions
+
+/**
+ * Reads a sector from a FAT file system.
+ * @param drive: The drive letter (e.g., 'C').
+ * @param sector: The sector number to read.
+ * @param buffer: The buffer to store the read data.
+ * @return FAT_SUCCESS on success, FAT_ERROR on failure.
+ * 
+ * This function reads a specified sector from the specified drive and 
+ * stores the data in the provided buffer.
+ */
+int read_sector(char drive, unsigned long sector, void *buffer);
+
+/**
+ * Writes a sector to a FAT file system.
+ * @param drive: The drive letter (e.g., 'C').
+ * @param sector: The sector number to write.
+ * @param buffer: The buffer containing data to write.
+ * @return FAT_SUCCESS on success, FAT_ERROR on failure.
+ * 
+ * This function writes the data from the provided buffer to the specified
+ * sector on the specified drive.
+ */
+int write_sector(char drive, unsigned long sector, const void *buffer);
+
+/**
+ * Converts a FAT timestamp to a human-readable format.
+ * @param fat_time: The FAT time.
+ * @param fat_date: The FAT date.
+ * @param buffer: The buffer to store the formatted date and time.
+ * @param buffer_size: The size of the buffer.
+ * @return FAT_SUCCESS on success, FAT_ERROR on failure.
+ * 
+ * This function converts the FAT time and date into a human-readable string
+ * and stores it in the provided buffer.
+ */
+int fat_time_to_string(unsigned short fat_time, unsigned short fat_date, char *buffer, size_t buffer_size);
+
+#ifdef __cplusplus
 }
+#endif
 
-// Function to list the root directory entries
-void list_root_directory(FILE *fp, FAT_BootSector *boot_sector) {
-    FAT_DirEntry dir_entry;
-    // Calculate the number of sectors used by the root directory
-    uint32_t root_dir_sectors = ((boot_sector->root_entry_count * 32) + (boot_sector->bytes_per_sector - 1)) / boot_sector->bytes_per_sector;
-    // Calculate the offset to the root directory
-    uint32_t root_dir_offset = (boot_sector->reserved_sectors + (boot_sector->num_fats * boot_sector->fat_size_16)) * boot_sector->bytes_per_sector;
-
-    fseek(fp, root_dir_offset, SEEK_SET); // Move to the root directory
-
-    // Loop through the root directory entries
-    for (int i = 0; i < boot_sector->root_entry_count; i++) {
-        fread(&dir_entry, sizeof(FAT_DirEntry), 1, fp); // Read directory entry
-
-        if (dir_entry.filename[0] == 0x00) break; // No more entries
-        if (dir_entry.filename[0] == 0xE5) continue; // Deleted entry
-
-        if (!(dir_entry.attr & 0x08)) { // Not a volume label
-            printf("%.8s.%.3s  %10u bytes\n", dir_entry.filename, dir_entry.ext, dir_entry.file_size);
-        }
-    }
-}
-
-// Main Function
-int main(int argc, char *argv[]) {
-    // Ensure the program is called with one argument (the FAT image file)
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <FAT image file>\n", argv[0]);
-        return 1;
-    }
-
-    // Open the FAT image file in binary read mode
-    FILE *fp = fopen(argv[1], "rb");
-    if (fp == NULL) {
-        perror("Failed to open file");
-        return 1;
-    }
-
-    FAT_BootSector boot_sector;
-    read_boot_sector(fp, &boot_sector); // Read the boot sector
-    list_root_directory(fp, &boot_sector); // List the root directory
-
-    fclose(fp); // Close the file
-    return 0;
-}
+#endif // FAT_UTIL_H
