@@ -15,4 +15,4 @@ This project provides a user-space implementation of a FAT (File Allocation Tabl
 + Attributes: Get and set file attributes such as read-only, hidden, system, etc.
 
 # Dependencies
--Windows API: Utilizes Windows-specific headers and functions (windows.h) for file handling and system interactions.
+- Windows API: Utilizes Windows-specific headers and functions (windows.h) for file handling and system interactions.
