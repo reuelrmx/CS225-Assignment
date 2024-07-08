@@ -1,134 +1,207 @@
-#include "fat_fs.h"
-#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include "fat_fs.h"
+#include "fat_util.h"
 
-// Function Definitions
-
-static int is_file_open(file_desc_t *fd) {
-    return fd->file_handle != INVALID_HANDLE_VALUE;
-}
-
-int fat_mount(const char *device_name) {
-    // Implementation for mounting the FAT file system
-    printf("Mounting FAT file system from device: %s\n", device_name);
-    // Example: Implement actual mounting logic
+// Helper function to find an empty directory entry
+static int find_empty_dir_entry(HANDLE device, const BPB *bpb, DirEntry *entry) {
+    // Your implementation here to locate an empty directory entry
+    // This is a placeholder and needs actual implementation
     return FAT_SUCCESS;
 }
 
-int fat_unmount(void) {
-    // Implementation for unmounting the FAT file system
-    printf("Unmounting FAT file system\n");
-    // Example: Implement actual unmounting logic
+// Helper function to locate a file in the directory
+static int locate_file(HANDLE device, const BPB *bpb, const char *path, DirEntry *entry) {
+    // Your implementation here to locate a file in the directory
+    // This is a placeholder and needs actual implementation
     return FAT_SUCCESS;
 }
 
-int fat_open(const char *path, file_desc_t *fd) {
-    // Implementation for opening a file
-    printf("Opening file: %s\n", path);
-    // Example: Implement actual file opening logic
-    // Example: Initialize file descriptor with file attributes
-    strncpy(fd->dir_entry.name, path, sizeof(fd->dir_entry.name));
-    fd->current_cluster = 0;  // Example: Set initial cluster
-    fd->file_pointer = 0;     // Example: Set initial file pointer
-    fd->file_handle = (HANDLE)1234;  // Example: Set a dummy file handle
-    return FAT_SUCCESS;
-}
+int create_file(HANDLE device, const BPB *bpb, const char *path, DirEntry *entry) {
+    if (find_empty_dir_entry(device, bpb, entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
 
-int fat_close(file_desc_t *fd) {
-    // Implementation for closing a file
-    printf("Closing file: %s\n", fd->dir_entry.name);
-    // Example: Implement actual file closing logic
-    fd->file_handle = INVALID_HANDLE_VALUE;
-    return FAT_SUCCESS;
-}
-
-int fat_read(file_desc_t *fd, void *buffer, uint32_t size) {
-    // Implementation for reading from a file
-    printf("Reading from file: %s\n", fd->dir_entry.name);
-    // Example: Implement actual file reading logic
-    // Example: Read 'size' bytes into 'buffer'
-    return size;  // Example: Return number of bytes read
-}
-
-int fat_write(file_desc_t *fd, const void *buffer, uint32_t size) {
-    // Implementation for writing to a file
-    printf("Writing to file: %s\n", fd->dir_entry.name);
-    // Example: Implement actual file writing logic
-    // Example: Write 'size' bytes from 'buffer'
-    return size;  // Example: Return number of bytes written
-}
-
-int fat_lseek(file_desc_t *fd, uint32_t offset, uint32_t whence) {
-    // Implementation for seeking in a file
-    printf("Seeking in file: %s\n", fd->dir_entry.name);
-    // Example: Implement actual file seeking logic
-    // Example: Seek to 'offset' from 'whence'
-    return FAT_SUCCESS;
-}
-
-int fat_list_dir(const char *path) {
-    // Implementation for listing directory contents
-    printf("Listing directory: %s\n", path);
-    // Example: Implement actual directory listing logic
-    return FAT_SUCCESS;
-}
-
-int fat_mkdir(const char *path) {
-    // Implementation for creating a new directory
-    printf("Creating directory: %s\n", path);
-    // Example: Implement actual directory creation logic
-    return FAT_SUCCESS;
-}
-
-int fat_remove(const char *path) {
-    // Implementation for deleting a file
-    printf("Deleting file: %s\n", path);
-    // Example: Implement actual file deletion logic
-    return FAT_SUCCESS;
-}
-
-int fat_rmdir(const char *path) {
-    // Implementation for deleting a directory
-    printf("Deleting directory: %s\n", path);
-    // Example: Implement actual directory deletion logic
-    return FAT_SUCCESS;
-}
-
-int fat_rename(const char *old_path, const char *new_path) {
-    // Implementation for renaming a file or directory
-    printf("Renaming file/directory from: %s to %s\n", old_path, new_path);
-    // Example: Implement actual renaming logic
-    return FAT_SUCCESS;
-}
-
-int fat_move(const char *old_path, const char *new_path) {
-    // Implementation for moving a file or directory
-    printf("Moving file/directory from: %s to %s\n", old_path, new_path);
-    // Example: Implement actual moving logic
-    return FAT_SUCCESS;
-}
-
-int fat_copy(const char *src_path, const char *dest_path) {
-    // Implementation for copying a file
-    printf("Copying file from: %s to %s\n", src_path, dest_path);
-    // Example: Implement actual copying logic
-    return FAT_SUCCESS;
-}
-
-int fat_getattr(const char *path, dir_entry_t *entry) {
-    // Implementation for getting file attributes
-    printf("Getting attributes for file/directory: %s\n", path);
-    // Example: Implement actual attribute retrieval logic
-    // Example: Populate 'entry' with attributes
+    // Set up the new directory entry
+    memset(entry, 0, sizeof(DirEntry));
     strncpy(entry->name, path, sizeof(entry->name));
-    entry->attr = ATTR_ARCHIVE;  // Example: Set file attribute
+    entry->attr = 0; // Set appropriate attributes
+
+    // Write the new directory entry to the device
+    if (write_fat_entry(device, bpb, entry->first_cluster_low, (FATEntry *)entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
     return FAT_SUCCESS;
 }
 
-int fat_setattr(const char *path, const dir_entry_t *entry) {
-    // Implementation for setting file attributes
-    printf("Setting attributes for file/directory: %s\n", path);
-    // Example: Implement actual attribute setting logic
-    // Example: Apply attributes from 'entry' to file/directory
+int delete_file(HANDLE device, const BPB *bpb, const char *path) {
+    DirEntry entry;
+    if (locate_file(device, bpb, path, &entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    // Mark the directory entry as deleted
+    entry.name[0] = 0xE5;
+
+    // Write the updated directory entry back to the device
+    if (write_fat_entry(device, bpb, entry.first_cluster_low, (FATEntry *)&entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    return FAT_SUCCESS;
+}
+
+int read_file(HANDLE device, const BPB *bpb, const DirEntry *entry, void *buffer, uint32_t size) {
+    uint32_t cluster = entry->first_cluster_low;
+    uint32_t bytes_read = 0;
+    uint8_t sector_buffer[512]; // Assuming sector size is 512 bytes
+
+    while (size > 0) {
+        uint32_t sector = cluster_to_sector(bpb, cluster);
+        uint32_t sector_offset = bytes_read % bpb->bytes_per_sector;
+        uint32_t to_read = min(size, bpb->bytes_per_sector - sector_offset);
+
+        SetFilePointer(device, sector * bpb->bytes_per_sector, NULL, FILE_BEGIN);
+        if (!ReadFile(device, sector_buffer, bpb->bytes_per_sector, NULL, NULL)) {
+            return FAT_ERROR;
+        }
+
+        memcpy(buffer + bytes_read, sector_buffer + sector_offset, to_read);
+        bytes_read += to_read;
+        size -= to_read;
+
+        if (sector_offset + to_read == bpb->bytes_per_sector) {
+            // Move to next cluster
+            if (read_fat_entry(device, bpb, cluster, (FATEntry *)&cluster) != FAT_SUCCESS) {
+                return FAT_ERROR;
+            }
+        }
+    }
+
+    return bytes_read;
+}
+
+int write_file(HANDLE device, const BPB *bpb, const DirEntry *entry, const void *buffer, uint32_t size) {
+    uint32_t cluster = entry->first_cluster_low;
+    uint32_t bytes_written = 0;
+    uint8_t sector_buffer[512]; // Assuming sector size is 512 bytes
+
+    while (size > 0) {
+        uint32_t sector = cluster_to_sector(bpb, cluster);
+        uint32_t sector_offset = bytes_written % bpb->bytes_per_sector;
+        uint32_t to_write = min(size, bpb->bytes_per_sector - sector_offset);
+
+        if (sector_offset > 0 || to_write < bpb->bytes_per_sector) {
+            SetFilePointer(device, sector * bpb->bytes_per_sector, NULL, FILE_BEGIN);
+            if (!ReadFile(device, sector_buffer, bpb->bytes_per_sector, NULL, NULL)) {
+                return FAT_ERROR;
+            }
+        }
+
+        memcpy(sector_buffer + sector_offset, buffer + bytes_written, to_write);
+
+        SetFilePointer(device, sector * bpb->bytes_per_sector, NULL, FILE_BEGIN);
+        if (!WriteFile(device, sector_buffer, bpb->bytes_per_sector, NULL, NULL)) {
+            return FAT_ERROR;
+        }
+
+        bytes_written += to_write;
+        size -= to_write;
+
+        if (sector_offset + to_write == bpb->bytes_per_sector) {
+            // Move to next cluster
+            if (read_fat_entry(device, bpb, cluster, (FATEntry *)&cluster) != FAT_SUCCESS) {
+                return FAT_ERROR;
+            }
+        }
+    }
+
+    return bytes_written;
+}
+
+int copy_file(HANDLE device, const BPB *bpb, const char *src_path, const char *dest_path) {
+    DirEntry src_entry, dest_entry;
+    if (locate_file(device, bpb, src_path, &src_entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    if (create_file(device, bpb, dest_path, &dest_entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    void *buffer = malloc(src_entry.file_size);
+    if (!buffer) {
+        return FAT_ERROR;
+    }
+
+    if (read_file(device, bpb, &src_entry, buffer, src_entry.file_size) != src_entry.file_size) {
+        free(buffer);
+        return FAT_ERROR;
+    }
+
+    if (write_file(device, bpb, &dest_entry, buffer, src_entry.file_size) != src_entry.file_size) {
+        free(buffer);
+        return FAT_ERROR;
+    }
+
+    free(buffer);
+    return FAT_SUCCESS;
+}
+
+int move_file(HANDLE device, const BPB *bpb, const char *src_path, const char *dest_path) {
+    if (copy_file(device, bpb, src_path, dest_path) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    if (delete_file(device, bpb, src_path) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    return FAT_SUCCESS;
+}
+
+int rename_file(HANDLE device, const BPB *bpb, const char *old_path, const char *new_path) {
+    DirEntry entry;
+    if (locate_file(device, bpb, old_path, &entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    memset(entry.name, ' ', sizeof(entry.name));
+    strncpy(entry.name, new_path, sizeof(entry.name));
+
+    if (write_fat_entry(device, bpb, entry.first_cluster_low, (FATEntry *)&entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    return FAT_SUCCESS;
+}
+
+int read_directory(HANDLE device, const BPB *bpb, const char *path, DirEntry *entries, uint32_t max_entries) {
+    // This function should read directory entries from the specified path
+    // Your implementation here
+    return 0; // Return number of entries read
+}
+
+int create_directory(HANDLE device, const BPB *bpb, const char *path) {
+    DirEntry entry;
+    if (find_empty_dir_entry(device, bpb, &entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    memset(&entry, 0, sizeof(DirEntry));
+    strncpy(entry.name, path, sizeof(entry.name));
+    entry.attr = 0x10; // Directory attribute
+
+    if (write_fat_entry(device, bpb, entry.first_cluster_low, (FATEntry *)&entry) != FAT_SUCCESS) {
+        return FAT_ERROR;
+    }
+
+    return FAT_SUCCESS;
+}
+
+int delete_directory(HANDLE device, const BPB *bpb, const char *path) {
+    // This function should delete the directory and its contents
+    // Your implementation here
     return FAT_SUCCESS;
 }
