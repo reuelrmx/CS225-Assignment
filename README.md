@@ -1,6 +1,6 @@
-# FUSE
+## FUSE
 
-# FAT File System Library
+## FAT File System Library
 This project provides a user-space implementation of a FAT (File Allocation Table) file system in C, designed for Windows environments. It includes functions for file management, directory operations, and attribute manipulation.
 
 ## Features
@@ -27,5 +27,5 @@ This project provides a user-space implementation of a FAT (File Allocation Tabl
   - Set file attributes
 
 
-# Dependencies
+## Dependencies
 - Windows API: Utilizes Windows-specific headers and functions (windows.h) for file handling and system interactions.
