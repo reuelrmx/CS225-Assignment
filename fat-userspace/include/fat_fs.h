@@ -47,19 +47,19 @@ typedef struct {
 
 // Function Prototypes
 
-// Mount the file system
+// Function to Mount the file system
 int fat_mount(const char *device_name);
 
-// Unmount the file system
+// Function to Unmount the file system
 int fat_unmount(void);
 
-// Open a file
+// Function to Open a file
 int fat_open(const char *path, file_desc_t *fd);
 
-// Close a file
+//Function to Close a file
 int fat_close(file_desc_t *fd);
 
-// Read from a file
+//Function to Read from a file
 int fat_read(file_desc_t *fd, void *buffer, uint32_t size);
 
 // Write to a file
